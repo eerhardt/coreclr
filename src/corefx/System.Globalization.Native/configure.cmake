@@ -6,6 +6,7 @@ CHECK_CXX_SOURCE_COMPILES("
     int main() { UDateFormatSymbolType e = UDAT_STANDALONE_SHORTER_WEEKDAYS; }
 " HAVE_UDAT_STANDALONE_SHORTER_WEEKDAYS)
 
+list(APPEND CMAKE_REQUIRED_LIBRARIES icuuc)
 check_symbol_exists(
     ucol_setMaxVariable
     "unicode/ucol.h"

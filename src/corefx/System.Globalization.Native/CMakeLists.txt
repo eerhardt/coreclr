@@ -36,6 +36,8 @@ else()
     endif()
 endif()
 
+include(configure.cmake)
+
 add_compile_options(-fPIC)
 
 set(NATIVEGLOBALIZATION_SOURCES
@@ -72,7 +74,5 @@ else()
 
     add_definitions(-DU_DISABLE_RENAMING=1)
 endif()
-
-include(configure.cmake)
 
 install (TARGETS System.Globalization.Native DESTINATION .)
