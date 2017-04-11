@@ -20,6 +20,41 @@ namespace System
         private const string TimeZoneEnvironmentVariable = "TZ";
         private const string TimeZoneDirectoryEnvironmentVariable = "TZDIR";
 
+        private sealed partial class CachedData
+        {
+            private volatile OffsetAndRule _currentLocalFromUtc;
+
+            public OffsetAndRule GetCurrentOffsetAndRuleFromUtc(DateTime time)
+            {
+                TimeZoneInfo local = TimeZoneInfo.Local;
+                OffsetAndRule currentFromUtc = _currentLocalFromUtc;
+                if (currentFromUtc == null || NeedsRefresh(currentFromUtc.Rule, time, local))
+                {
+                    AdjustmentRule rule = local.GetAdjustmentRuleForTime(time, dateTimeisUtc: true);
+                    currentFromUtc = new OffsetAndRule(local.BaseUtcOffset, rule);
+                    _currentLocalFromUtc = currentFromUtc;
+                }
+
+                return currentFromUtc;
+            }
+
+            private static bool NeedsRefresh(AdjustmentRule rule, DateTime time, TimeZoneInfo local)
+            {
+                if (rule == null)
+                {
+                    // timezones without adjustment rules won't need to be refreshed
+                    return false;
+                }
+
+                return local.CompareAdjustmentRuleToDateTime(
+                        rule,
+                        rule, // not used because dateTimeisUtc == true
+                        time,
+                        time, // not used because unix TimeZoneInfo.AdjustmentRule.DateStart/End are all in Utc
+                        dateTimeisUtc: true) != 0;
+            }
+        }
+
         private TimeZoneInfo(byte[] data, string id, bool dstDisabled)
         {
             TZifHead t;
@@ -604,14 +639,6 @@ namespace System
             {
                 throw new TimeZoneNotFoundException(SR.Format(SR.TimeZoneNotFound_MissingData, id), e);
             }
-        }
-
-        // DateTime.Now fast path that avoids allocating an historically accurate TimeZoneInfo.Local and just creates a 1-year (current year) accurate time zone
-        internal static TimeSpan GetDateTimeNowUtcOffsetFromUtc(DateTime time, out bool isAmbiguousLocalDst)
-        {
-            bool isDaylightSavings;
-            // Use the standard code path for Unix since there isn't a faster way of handling current-year-only time zones
-            return GetUtcOffsetFromUtc(time, Local, out isDaylightSavings, out isAmbiguousLocalDst);
         }
 
         // TZFILE(5)                   BSD File Formats Manual                  TZFILE(5)

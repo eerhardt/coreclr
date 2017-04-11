@@ -1727,6 +1727,41 @@ namespace System
             return baseOffset;
         }
 
+        // DateTime.Now fast path that caches the current offset and rule
+        internal static TimeSpan GetDateTimeNowUtcOffsetFromUtc(DateTime time, out bool isAmbiguousLocalDst)
+        {
+            bool isDaylightSavings = false;
+            isAmbiguousLocalDst = false;
+            TimeSpan baseOffset;
+            int timeYear = time.Year;
+
+            OffsetAndRule match = s_cachedData.GetCurrentOffsetAndRuleFromUtc(time);
+            baseOffset = match.Offset;
+
+            if (match.Rule != null)
+            {
+                baseOffset = baseOffset + match.Rule.BaseUtcOffsetDelta;
+                if (match.Rule.HasDaylightSaving)
+                {
+                    isDaylightSavings = GetIsDaylightSavingsFromUtc(time, timeYear, match.Offset, match.Rule, out isAmbiguousLocalDst, Local);
+                    baseOffset += (isDaylightSavings ? match.Rule.DaylightDelta : TimeSpan.Zero /* FUTURE: rule.StandardDelta */);
+                }
+            }
+            return baseOffset;
+        }
+
+        private sealed partial class OffsetAndRule
+        {
+            public readonly TimeSpan Offset;
+            public readonly AdjustmentRule Rule;
+
+            public OffsetAndRule(TimeSpan offset, AdjustmentRule rule)
+            {
+                Offset = offset;
+                Rule = rule;
+            }
+        }
+
         /// <summary>
         /// Helper function that converts a year and TransitionTime into a DateTime.
         /// </summary>

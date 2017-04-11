@@ -46,8 +46,9 @@ namespace System
 
             private volatile OffsetAndRule _oneYearLocalFromUtc;
 
-            public OffsetAndRule GetOneYearLocalFromUtc(int year)
+            public OffsetAndRule GetCurrentOffsetAndRuleFromUtc(DateTime time)
             {
+                int year = time.Year;
                 OffsetAndRule oneYearLocFromUtc = _oneYearLocalFromUtc;
                 if (oneYearLocFromUtc == null || oneYearLocFromUtc.Year != year)
                 {
@@ -61,11 +62,9 @@ namespace System
         }
 #pragma warning restore 0420
 
-        private sealed class OffsetAndRule
+        private sealed partial class OffsetAndRule
         {
             public readonly int Year;
-            public readonly TimeSpan Offset;
-            public readonly AdjustmentRule Rule;
 
             public OffsetAndRule(int year, TimeSpan offset, AdjustmentRule rule)
             {
@@ -380,29 +379,6 @@ namespace System
             {
                 throw new TimeZoneNotFoundException(SR.Format(SR.TimeZoneNotFound_MissingData, id), e);
             }
-        }
-
-        // DateTime.Now fast path that avoids allocating an historically accurate TimeZoneInfo.Local and just creates a 1-year (current year) accurate time zone
-        internal static TimeSpan GetDateTimeNowUtcOffsetFromUtc(DateTime time, out bool isAmbiguousLocalDst)
-        {
-            bool isDaylightSavings = false;
-            isAmbiguousLocalDst = false;
-            TimeSpan baseOffset;
-            int timeYear = time.Year;
-
-            OffsetAndRule match = s_cachedData.GetOneYearLocalFromUtc(timeYear);
-            baseOffset = match.Offset;
-
-            if (match.Rule != null)
-            {
-                baseOffset = baseOffset + match.Rule.BaseUtcOffsetDelta;
-                if (match.Rule.HasDaylightSaving)
-                {
-                    isDaylightSavings = GetIsDaylightSavingsFromUtc(time, timeYear, match.Offset, match.Rule, out isAmbiguousLocalDst, Local);
-                    baseOffset += (isDaylightSavings ? match.Rule.DaylightDelta : TimeSpan.Zero /* FUTURE: rule.StandardDelta */);
-                }
-            }
-            return baseOffset;
         }
 
         /// <summary>
